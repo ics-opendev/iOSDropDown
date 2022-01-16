@@ -7,7 +7,7 @@
 //  Copyright © 2018 JRiOSdev. All rights reserved.
 //
 import UIKit
-@objc(JRDropDown)
+
 open class DropDown : UITextField{
 
     var arrow : Arrow!
@@ -55,7 +55,8 @@ open class DropDown : UITextField{
     fileprivate  var tableheightX: CGFloat = 100
     fileprivate  var dataArray = [String]()
     fileprivate  var imageArray = [String]()
-    fileprivate  var parentController:UIViewController?
+    // 改変(何故かコミットが反映されていない)
+    fileprivate  weak var parentController:UIViewController?
     fileprivate  var pointToParent = CGPoint(x: 0, y: 0)
     fileprivate var backgroundView = UIView()
     fileprivate var keyboardHeight:CGFloat = 0
@@ -73,6 +74,11 @@ open class DropDown : UITextField{
     public var optionIds : [Int]?
     var searchText = String() {
         didSet{
+            // 改変(追加)
+            if !self.optionArray.isEmpty {
+                self.optionArray[0] = searchText
+            }
+            // 改変終了
             if searchText == "" {
                 self.dataArray = self.optionArray
             }else{
@@ -112,12 +118,18 @@ open class DropDown : UITextField{
         super.init(frame: frame)
         setupUI()
         self.delegate = self
+        // 改変(追加)
+        self.addTarget(self, action: #selector(self.textFieldDidChange(_:)), for: UIControl.Event.editingChanged)
+        // 改変終了
     }
 
     public required init(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)!
         setupUI()
         self.delegate = self
+        // 改変(追加)
+        self.addTarget(self, action: #selector(self.textFieldDidChange(_:)), for: UIControl.Event.editingChanged)
+        // 改変終了
     }
 
 
@@ -143,10 +155,10 @@ open class DropDown : UITextField{
         self.backgroundView.backgroundColor = .clear
         addGesture()
         if isSearchEnable && handleKeyboard{
-            NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: nil) { (notification) in
+            NotificationCenter.default.addObserver(forName: NSNotification.Name.UIKeyboardWillShow, object: nil, queue: nil) { (notification) in
                 if self.isFirstResponder{
                 let userInfo:NSDictionary = notification.userInfo! as NSDictionary
-                    let keyboardFrame:NSValue = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as! NSValue
+                let keyboardFrame:NSValue = userInfo.value(forKey: UIKeyboardFrameEndUserInfoKey) as! NSValue
                 let keyboardRectangle = keyboardFrame.cgRectValue
                 self.keyboardHeight = keyboardRectangle.height
                     if !self.isSelected{
@@ -155,7 +167,7 @@ open class DropDown : UITextField{
                 }
               
             }
-            NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: nil) { (notification) in
+            NotificationCenter.default.addObserver(forName: NSNotification.Name.UIKeyboardWillHide, object: nil, queue: nil) { (notification) in
                 if self.isFirstResponder{
                 self.keyboardHeight = 0
                 }
@@ -337,7 +349,18 @@ open class DropDown : UITextField{
     public func listDidDisappear(completion: @escaping () -> ()) {
         TableDidDisappearCompletion = completion
     }
+    // 改変(追加)
+    @objc func textFieldDidChange(_ textFiled: UITextField) {
+        guard let text = textFiled.text else {
+            return
+        }
+        self.searchText = text
 
+        if !isSelected {
+            showList()
+        }
+    }
+    // 改変終了
 }
 
 //MARK: UITextFieldDelegate
@@ -355,7 +378,7 @@ extension DropDown : UITextFieldDelegate {
     public func textFieldShouldBeginEditing(_ textField: UITextField) -> Bool {
         return isSearchEnable
     }
-
+    /* 改変(削除)
     public func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
         if string != "" {
             self.searchText = self.text! + string
@@ -368,6 +391,7 @@ extension DropDown : UITextFieldDelegate {
         }
         return true;
     }
+    改変終了 */
 
 }
 ///MARK: UITableViewDataSource
@@ -386,13 +410,17 @@ extension DropDown: UITableViewDataSource {
         if cell == nil {
             cell = UITableViewCell(style: .default, reuseIdentifier: cellIdentifier)
         }
-
+        // 改変(変更)
         if indexPath.row != selectedIndex{
             cell!.backgroundColor = rowBackgroundColor
         }else {
             cell?.backgroundColor = selectedRowColor
         }
-
+        // 改変(追加)
+        if indexPath.row == 0 && selectedIndex == nil {
+            cell?.backgroundColor = selectedRowColor
+        }
+        // 改変終了
         if self.imageArray.count > indexPath.row {
             cell!.imageView!.image = UIImage(named: imageArray[indexPath.row])
         }
@@ -401,8 +429,6 @@ extension DropDown: UITableViewDataSource {
         cell!.selectionStyle = .none
         cell?.textLabel?.font = self.font
         cell?.textLabel?.textAlignment = self.textAlignment
-        cell?.textLabel?.numberOfLines = 0
-        cell?.textLabel?.lineBreakMode = .byWordWrapping
         return cell!
     }
 }
@@ -426,7 +452,7 @@ extension DropDown: UITableViewDelegate {
             touchAction()
             self.endEditing(true)
         }
-        if let selected = optionArray.firstIndex(where: {$0 == selectedText}) {
+        if let selected = optionArray.index(where: {$0 == selectedText}) {
             if let id = optionIds?[selected] {
                 didSelectCompletion(selectedText, selected , id )
             }else{
@@ -530,16 +556,7 @@ extension UIView {
         layer.shouldRasterize = true
         layer.rasterizationScale = scale ? UIScreen.main.scale : 1
     }
-    
-    func viewBorder(borderColor : UIColor, borderWidth : CGFloat?) {
-        self.layer.borderColor = borderColor.cgColor
-        if let borderWidth_ = borderWidth {
-            self.layer.borderWidth = borderWidth_
-        } else {
-            self.layer.borderWidth = 1.0
-        }
-    }
-    
+
     var parentViewController: UIViewController? {
         var parentResponder: UIResponder? = self
         while parentResponder != nil {
@@ -551,5 +568,4 @@ extension UIView {
         return nil
     }
 }
-
 
